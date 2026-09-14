@@ -65,10 +65,28 @@ void AudioEngine::audioDeviceIOCallbackWithContext(
 
 			oscillator_.setFrequency(frequency);
 			envelope_.noteOn();
-		}
+		} 
+
 
 		activeMidiNote_ = requestedNote;
 	}
+
+	else
+	{
+		activeVelocity_ =
+			requestedVelocity_.load();
+
+		const double frequency =
+			juce::MidiMessage::getMidiNoteInHertz(
+				requestedNote
+			);
+
+		oscillator_.setFrequency(frequency);
+		envelope_.noteOn();
+	}
+
+	const float velocityGain =
+		static_cast<float>(activeVelocity_) / 127.0f;
 
 	for (int sampleIndex = 0;
 		sampleIndex < numSamples;
@@ -76,6 +94,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(
 	{
 		const float sample =
 			0.1f
+			* velocityGain
 			* envelope_.nextValue()
 			* oscillator_.nextSample();
 
@@ -94,10 +113,17 @@ void AudioEngine::audioDeviceIOCallbackWithContext(
 //
 //--Notes On/Off
 //
-void AudioEngine::noteOn(int midiNoteNumber)
+void AudioEngine::noteOn(
+	int midiNoteNumber,
+	int velocity
+)
 {
-	if (midiNoteNumber >= 0 && midiNoteNumber <= 127)
+	if (midiNoteNumber >= 0
+		&& midiNoteNumber <= 127
+		&& velocity >= 1
+		&& velocity <= 127)
 	{
+		requestedVelocity_.store(velocity);
 		requestedMidiNote_.store(midiNoteNumber);
 	}
 }
@@ -111,7 +137,10 @@ void AudioEngine::handleIncomingMidiMessage(
 
 	if (message.isNoteOn())
 	{
-		noteOn(message.getNoteNumber());
+		noteOn(
+			message.getNoteNumber(),
+			message.getVelocity()
+		);;
 	}
 	else if (message.isNoteOff())
 	{

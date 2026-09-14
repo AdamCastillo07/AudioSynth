@@ -31,7 +31,7 @@ public:
         const juce::MidiMessage& message
     ) override;
 
-    void noteOn(int midiNoteNumber);
+    void noteOn(int midiNoteNumber, int velocity);
     void noteOff(int midiNoteNumber);
 
     void audioDeviceStopped() override;
@@ -44,4 +44,7 @@ private:
    
     std::atomic<int> requestedMidiNote_{ -1 };
     int activeMidiNote_ = -1;
+
+    std::atomic<int> requestedVelocity_{ 0 };
+    int activeVelocity_ = 0;
 };
