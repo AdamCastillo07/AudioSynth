@@ -4,7 +4,10 @@
 
 # Add source to this project's executable.
 add_executable (AudioSynth "AudioSynth.cpp" "AudioSynth.h"
-"Oscillator.cpp" "Oscillator.h" "AmplitudeEnvelope.h" "AmplitudeEnvelope.cpp" "WavWriter.h" "WavWriter.cpp" "AudioEngine.h" "AudioEngine.cpp")
+"Oscillator.cpp" "Oscillator.h" "AmplitudeEnvelope.h" "AmplitudeEnvelope.cpp" 
+"WavWriter.h" "WavWriter.cpp" 
+"AudioEngine.h" "AudioEngine.cpp"
+"SynthVoice.h" "SynthVoice.cpp")
 
 target_link_libraries(AudioSynth
     PRIVATE

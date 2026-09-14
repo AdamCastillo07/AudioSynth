@@ -16,6 +16,17 @@ AudioEngine::AudioEngine()
 	envelope_.setSustainLevel(0.7f);
 	envelope_.setReleaseTime(0.2);
 
+	constexpr int voiceCount = 8;
+
+	voices_.reserve(voiceCount);
+
+	for (int voiceIndex = 0;
+		voiceIndex < voiceCount;
+		++voiceIndex)
+	{
+		voices_.emplace_back(44100.0);
+	}
+
 }
 
 void AudioEngine::audioDeviceAboutToStart(
@@ -29,7 +40,16 @@ void AudioEngine::audioDeviceAboutToStart(
 
 		oscillator_.setSampleRate(sampleRate);
 		envelope_.setSampleRate(sampleRate);
+
+		midiCollector_.reset(sampleRate);
+		midiBuffer_.ensureSize(2048);
+		
+		for (SynthVoice& voice : voices_)
+		{
+			voice.setSampleRate(sampleRate);
+		}
 	}
+
 }
 
 void AudioEngine::audioDeviceIOCallbackWithContext(
@@ -46,6 +66,31 @@ void AudioEngine::audioDeviceIOCallbackWithContext(
 		numInputChannels,
 		context
 	);
+
+	midiBuffer_.clear();
+
+	midiCollector_.removeNextBlockOfMessages(
+		midiBuffer_,
+		numSamples
+	);
+
+	for (const auto metadata : midiBuffer_)
+	{
+		const juce::MidiMessage message =
+			metadata.getMessage();
+
+		if (message.isNoteOn())
+		{
+			noteOn(
+				message.getNoteNumber(),
+				message.getVelocity()
+			);
+		}
+		else if (message.isNoteOff())
+		{
+			noteOff(message.getNoteNumber());
+		}
+	}
 
 	const int requestedNote =
 		requestedMidiNote_.load();
@@ -92,11 +137,15 @@ void AudioEngine::audioDeviceIOCallbackWithContext(
 		sampleIndex < numSamples;
 		++sampleIndex)
 	{
+		float mixedSample = 0.0f;
+
+		for (SynthVoice& voice : voices_)
+		{
+			mixedSample += voice.nextSample();
+		}
+
 		const float sample =
-			0.1f
-			* velocityGain
-			* envelope_.nextValue()
-			* oscillator_.nextSample();
+			0.1f * mixedSample;
 
 		for (int channel = 0;
 			channel < numOutputChannels;
@@ -125,6 +174,19 @@ void AudioEngine::noteOn(
 	{
 		requestedVelocity_.store(velocity);
 		requestedMidiNote_.store(midiNoteNumber);
+
+		for (SynthVoice& voice : voices_)
+		{
+			if (!voice.isActive())
+			{
+				voice.startNote(
+					midiNoteNumber,
+					velocity
+				);
+
+				break;
+			}
+		}
 	}
 }
 
@@ -134,18 +196,7 @@ void AudioEngine::handleIncomingMidiMessage(
 )
 {
 	juce::ignoreUnused(source);
-
-	if (message.isNoteOn())
-	{
-		noteOn(
-			message.getNoteNumber(),
-			message.getVelocity()
-		);;
-	}
-	else if (message.isNoteOff())
-	{
-		noteOff(message.getNoteNumber());
-	}
+	midiCollector_.addMessageToQueue(message);
 }
 
 void AudioEngine::noteOff(int midiNoteNumber)
@@ -153,6 +204,15 @@ void AudioEngine::noteOff(int midiNoteNumber)
 	if (requestedMidiNote_.load() == midiNoteNumber)
 	{
 		requestedMidiNote_.store(-1);
+	}
+	
+	for (SynthVoice& voice : voices_)
+	{
+		if (voice.isActive()
+			&& voice.getMidiNoteNumber() == midiNoteNumber)
+		{
+			voice.stopNote();
+		}
 	}
 }
 

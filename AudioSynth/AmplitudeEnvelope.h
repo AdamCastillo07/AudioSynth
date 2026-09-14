@@ -11,7 +11,8 @@ public:
 	void setSustainLevel(float level);
 	void setReleaseTime(double seconds);
 	
-
+	bool isActive() const;
+	
 	void noteOn();
 	void noteOff();
 

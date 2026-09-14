@@ -57,6 +57,11 @@ void AmplitudeEnvelope::setReleaseTime(double seconds)
 	releaseTime_ = seconds;
 }
 
+bool AmplitudeEnvelope::isActive() const
+{
+	return state_ != State::Idle;
+}
+
 void AmplitudeEnvelope::noteOn()
 {
 	state_ = State::Attack;

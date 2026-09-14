@@ -2,6 +2,9 @@
 
 #include "Oscillator.h"
 #include "AmplitudeEnvelope.h"
+#include "SynthVoice.h"
+
+#include <vector>
 #include <atomic>
 
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -47,4 +50,9 @@ private:
 
     std::atomic<int> requestedVelocity_{ 0 };
     int activeVelocity_ = 0;
+
+    std::vector<SynthVoice> voices_;
+
+    juce::MidiMessageCollector midiCollector_;
+    juce::MidiBuffer midiBuffer_;
 };
